@@ -37,14 +37,21 @@ def etl_baby_names():
         with open("/home/zfreeze/airflow/dags/names.zip", "wb") as temp_file:
             temp_file.write(response.content)
 
-    
     # Bash to extract files from zip
+    # unzip names.zip -d names
+
     # Bash to remove non-txt files
+    # find ./names -type f -not -name "*.txt" -delete
+
     # Bash task remove files not matching the desired year
 
-    # Upload CSV -> tuples -> insert rows to Postgres using Python
+    @task
+    def upload_baby_names():
+        # Upload CSV -> tuples -> insert rows to Postgres using Python
+        pass
 
     # Bash to clean up all files in the directory
+    # rm -R names && rm names.zip
     
     # Define task dependencies
     extract_baby_name_data()
