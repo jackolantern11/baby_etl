@@ -17,9 +17,9 @@ default_args = {
 @dag(
     start_date=datetime(2024, 5, 1, 14, 0, 0, tzinfo=pendulum.timezone("US/Central")),
     end_date=None,
-    schedule=None, # '0 9 20 5 *',
+    schedule='0 9 20 5 *',
     dag_id="baby_name_etl",
-    dagrun_timeout=timedelta(minutes=5),
+    dagrun_timeout=timedelta(minutes=60),
     catchup=False,
     description="baby name etl from SSA records",
     max_active_runs=3,
@@ -31,6 +31,9 @@ def etl_baby_names():
     # Config
     work_dir_str: str = '/home/zfreeze/airflow/dags/baby_etl'
     os.chdir(work_dir_str)
+
+    # Static
+    MIN_DATA_YEAR: int = 1849
 
     @task
     def extract_baby_name_data():
@@ -50,7 +53,7 @@ def etl_baby_names():
     )
 
     @task
-    def upload_baby_names():
+    def upload_baby_names(**context):
         import glob
         import csv
         import re
@@ -67,10 +70,17 @@ def etl_baby_names():
         csv_file_paths: list[str] = glob.glob(os.path.join(work_dir_str + '/names', "*.txt"))
         csv_file_names: list[str] = [os.path.basename(file_name) for file_name in csv_file_paths]
 
+        cuttoff_year: int = conn.get_first(sql=f'select MAX(year) from {TABLE_NAME}')[0]
+        logging.info(f"{cuttoff_year=}")
+
         # Use glob to get all files:
         for path, name in zip(csv_file_paths, csv_file_names):
-            print(f"Processing {path=} -- {name=}...")
+            logging.info(f"Processing {name=}...")
             year = re.findall('\d+', name)[0]
+
+            if int(year) < (cuttoff_year if cuttoff_year else MIN_DATA_YEAR):
+                logging.info(f"{year=} data previously processed...")
+                continue
 
             batch: list[list[any]] = []
             with open(path, "r") as f:
@@ -79,10 +89,8 @@ def etl_baby_names():
                     row.insert(0, year)
                     batch.append(row)
 
-            print(f"{batch=}")
-
             conn.insert_rows(table=TABLE_NAME, rows=batch, target_fields=COLUMN_NAMES, commit_every=0)
-            print(f"Finished processing {path=} -- {name=}")
+            logging.info(f"Finished {name=}...")
 
     clean_working_files = BashOperator(
         task_id='clean_working_files',
