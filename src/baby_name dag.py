@@ -53,6 +53,7 @@ def etl_baby_names():
     def upload_baby_names():
         import glob
         import csv
+        import re
         from airflow.providers.postgres.hooks.postgres import PostgresHook
 
         # Define CSV Directory & Table Name
@@ -63,21 +64,25 @@ def etl_baby_names():
 
         # Connect to PostgreSQL
         conn = PostgresHook(postgres_conn_id='AIRFLOW_CONN_POSTGRES_ANALYTICS')
-        csv_files = glob.glob(os.path.join(work_dir_str + '/names', "*.txt"))
-        print(f"{csv_files=}")
+        csv_file_paths: list[str] = glob.glob(os.path.join(work_dir_str + '/names', "*.txt"))
+        csv_file_names: list[str] = [os.path.basename(file_name) for file_name in csv_file_paths]
 
         # Use glob to get all files:
-        for file in csv_files:
-            print(f"Processing {file=}...")
+        for path, name in zip(csv_file_paths, csv_file_names):
+            print(f"Processing {path=} -- {name=}...")
+            year = re.findall('\d+', name)[0]
 
-            with open(file, "r") as f:
+            batch: list[list[any]] = []
+            with open(path, "r") as f:
                 reader = csv.reader(f)
-                batch = []
                 for row in reader:
+                    row.insert(0, year)
                     batch.append(row)
 
-            conn.insert_rows(table=TABLE_NAME, rows=batch, targe_fields=COLUMN_NAMES, commit_every=0)
-            print(f"Finished processing {file}")
+            print(f"{batch=}")
+
+            conn.insert_rows(table=TABLE_NAME, rows=batch, target_fields=COLUMN_NAMES, commit_every=0)
+            print(f"Finished processing {path=} -- {name=}")
 
     clean_working_files = BashOperator(
         task_id='clean_working_files',
