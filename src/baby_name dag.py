@@ -60,7 +60,7 @@ def etl_baby_names():
         from airflow.providers.postgres.hooks.postgres import PostgresHook
 
         # Define CSV Directory & Table Name
-        TABLE_NAME: str = "baby_names.names"
+        TABLE_NAME: str = "baby_names.federal_data"
 
         # Define static column names (since CSV files have no headers)
         COLUMN_NAMES: list[str] = ["year", "name", "gender", "count"]
