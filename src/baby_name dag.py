@@ -78,7 +78,7 @@ def etl_baby_names():
             logging.info(f"Processing {name=}...")
             year = re.findall('\d+', name)[0]
 
-            if int(year) < (cuttoff_year if cuttoff_year else MIN_DATA_YEAR):
+            if int(year) <= (cuttoff_year if cuttoff_year else MIN_DATA_YEAR):
                 logging.info(f"{year=} data previously processed...")
                 continue
 
